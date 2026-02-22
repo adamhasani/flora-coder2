@@ -1,13 +1,12 @@
-// API TRANSLATE - /src/app/api/translate/route.ts
 import ZAI from 'z-ai-web-dev-sdk';
-import { NextRequest } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 
 export async function POST(request: NextRequest) {
   try {
     const { code, language } = await request.json();
 
     if (!code || !language) {
-      return Response.json({ error: 'Kode dan bahasa pemrograman diperlukan' }, { status: 400 });
+      return NextResponse.json({ error: 'Kode dan bahasa diperlukan' }, { status: 400 });
     }
 
     const zai = await ZAI.create();
@@ -16,37 +15,24 @@ export async function POST(request: NextRequest) {
       messages: [
         {
           role: 'system',
-          content: `Kamu adalah asisten pemrograman yang ahli. Tugas kamu adalah menjelaskan kode pemrograman dalam Bahasa Indonesia.
+          content: `Kamu adalah asisten pemrograman. Jelaskan kode dalam Bahasa Indonesia.
 
-Kamu HARUS merespons dalam format JSON yang VALID (tanpa markdown):
+Format JSON:
 {
-  "ringkasan": "Ringkasan singkat",
-  "penjelasanBaris": [{ "baris": 1, "kode": "kode", "penjelasan": "penjelasan" }],
-  "konsepPenting": ["konsep1"],
-  "tips": "tips berguna",
-  "contohPenggunaan": "contoh"
+  "ringkasan": "ringkasan",
+  "penjelasanBaris": [{"baris": 1, "kode": "kode", "penjelasan": "penjelasan"}],
+  "konsepPenting": ["konsep"],
+  "tips": "tips"
 }`
         },
-        { role: 'user', content: `Jelaskan kode ${language} berikut:\n\n\`\`\`${language}\n${code}\n\`\`\`` }
+        { role: 'user', content: `Jelaskan kode ${language}:\n\n${code}` }
       ],
-      temperature: 0.7,
     });
 
-    const content = completion.choices[0]?.message?.content;
-    if (!content) return Response.json({ error: 'Tidak ada respons' }, { status: 500 });
-
-    let cleanContent = content.trim();
-    if (cleanContent.startsWith('```json')) cleanContent = cleanContent.slice(7);
-    else if (cleanContent.startsWith('```')) cleanContent = cleanContent.slice(3);
-    if (cleanContent.endsWith('```')) cleanContent = cleanContent.slice(0, -3);
-    cleanContent = cleanContent.trim();
-
-    try {
-      return Response.json({ result: JSON.parse(cleanContent) });
-    } catch {
-      return Response.json({ result: { ringkasan: "Penjelasan", penjelasanBaris: [], konsepPenting: [], tips: cleanContent, contohPenggunaan: "" }});
-    }
+    const content = completion.choices[0]?.message?.content || '';
+    
+    return NextResponse.json({ result: { ringkasan: content, penjelasanBaris: [], konsepPenting: [], tips: '' } });
   } catch (error) {
-    return Response.json({ error: 'Terjadi kesalahan' }, { status: 500 });
+    return NextResponse.json({ error: 'Error' }, { status: 500 });
   }
 }
